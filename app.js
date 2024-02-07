@@ -1,9 +1,9 @@
-import express, { json, urlencoded } from "express";
+express = require("express");
 const app = express();
 const port = 3000;
 
-app.use(json());
-app.use(urlencoded({ extended: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Middleware to validate task input
 const validateTaskInput = (req, res, next) => {
@@ -149,4 +149,4 @@ app.listen(port, (err) => {
   console.log(`Server is listening on ${port}`);
 });
 
-export default app;
+module.exports = app;
