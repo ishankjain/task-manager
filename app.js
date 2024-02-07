@@ -128,7 +128,7 @@ app.put("/tasks/:id", validateTaskInput, checkTaskExists, (req, res) => {
   req.task.description = description;
   req.task.completed = completed;
 
-  return res.status(201).json(req.task);
+  return res.status(200).json(req.task);
 });
 
 // DELETE a task by ID
@@ -136,7 +136,7 @@ app.delete("/tasks/:id", checkTaskExists, (req, res) => {
   const index = tasks.indexOf(req.task);
   tasks.splice(index, 1);
 
-  return res.sendStatus(204);
+  return res.sendStatus(200);
 });
 
 // Error handling middleware
