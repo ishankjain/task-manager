@@ -44,11 +44,28 @@ const checkTaskExists = (req, res, next) => {
 };
 
 // Custom error handling middleware
-const  errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res, next) => {
   console.error(err.stack); // Log the error stack trace
 
   // Return an appropriate error response to the client
   return res.status(500).json({ error: "Internal Server Error" });
+};
+
+// Validate query parameters for filtering/sorting the tasks
+const validateQueryParams = (req, res, next) => {
+  // Validate for filtering by completion status
+  const { completed } = req.query;
+  if (completed && !["true", "false"].includes(completed)) {
+    return res.status(400).json({ error: "Invalid value for 'completed' parameter. Only allowed values are true and false." });
+  }
+
+  // Validate for sorting by id (proxy for creation date)
+  const { sortBy } = req.query;
+  if (sortBy && !/^id:(asc|desc)$/.test(sortBy)) {
+    return res.status(400).json({ error: "Invalid value for 'sortBy' parameter. Only allowed values are id:asc and id:desc." });
+  }
+
+  next();
 };
 
 let tasks = [];
@@ -60,8 +77,30 @@ app.get("/", (req, res) => {
 });
 
 // GET all tasks
-app.get("/tasks", (req, res) => {
-  return res.status(200).json(tasks);
+app.get("/tasks", validateQueryParams, (req, res) => {
+  let filteredTasks = [...tasks];
+
+  // Filter by completion status
+  const { completed } = req.query;
+  if (completed) {
+    const isCompleted = completed === "true";
+    filteredTasks = filteredTasks.filter(task => task.completed === isCompleted);
+  }
+
+  // Sort by id (proxy for creation date)
+  const { sortBy } = req.query;
+  if (sortBy) {
+    const [field, order] = sortBy.split(":");
+    filteredTasks.sort((a, b) => {
+      if (order === "asc") {
+        return a[field] - b[field];
+      } else if (order === "desc") {
+        return b[field] - a[field];
+      }
+    });
+  }
+
+  return res.status(200).json(filteredTasks);
 });
 
 // GET a task by ID
