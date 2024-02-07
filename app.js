@@ -28,6 +28,29 @@ const validateTaskInput = (req, res, next) => {
   next();
 };
 
+// Middleware to check if task exists by ID
+const checkTaskExists = (req, res, next) => {
+  const id = parseInt(req.params.id);
+  const task = tasks.find((task) => task.id === id);
+
+  // Check if task exists
+  if (!task) {
+    return res.status(404).json({ error: "Task not found" });
+  }
+
+  // If task exists, attach it to the request object for use in subsequent middleware
+  req.task = task;
+  next();
+};
+
+// Custom error handling middleware
+const  errorHandler = (err, req, res, next) => {
+  console.error(err.stack); // Log the error stack trace
+
+  // Return an appropriate error response to the client
+  return res.status(500).json({ error: "Internal Server Error" });
+};
+
 let tasks = [];
 let taskId = 1;
 
@@ -42,16 +65,8 @@ app.get("/tasks", (req, res) => {
 });
 
 // GET a task by ID
-app.get("/tasks/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const task = tasks.find((task) => task.id === id);
-
-  // Check if task exists
-  if (!task) {
-    return res.status(404).json({ error: "Task not found" });
-  }
-
-  return res.status(200).json(task);
+app.get("/tasks/:id", checkTaskExists, (req, res) => {
+  return res.status(200).json(req.task);
 });
 
 // POST a new task
@@ -66,36 +81,27 @@ app.post("/tasks", validateTaskInput, (req, res) => {
 });
 
 // PUT update a task by ID
-app.put("/tasks/:id", validateTaskInput, (req, res) => {
-  const id = parseInt(req.params.id);
+app.put("/tasks/:id", validateTaskInput, checkTaskExists, (req, res) => {
   const { title, description, completed } = req.body;
-  const taskIndex = tasks.findIndex((task) => task.id === id);
-
-  // Check if task exists
-  if (taskIndex === -1) {
-    return res.status(404).json({ error: "Task not found" });
-  }
 
   // Update the task
-  tasks[taskIndex] = { id, title, description, completed };
+  req.task.title = title;
+  req.task.description = description;
+  req.task.completed = completed;
 
-  return res.status(201).json(tasks[taskIndex]);
+  return res.status(201).json(req.task);
 });
 
 // DELETE a task by ID
-app.delete("/tasks/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const taskIndex = tasks.findIndex((task) => task.id === id);
-
-  // Check if task exists
-  if (taskIndex === -1) {
-    return res.status(404).json({ error: "Task not found" });
-  }
-
-  tasks.splice(taskIndex, 1);
+app.delete("/tasks/:id", checkTaskExists, (req, res) => {
+  const index = tasks.indexOf(req.task);
+  tasks.splice(index, 1);
 
   return res.sendStatus(204);
 });
+
+// Error handling middleware
+app.use(errorHandler);
 
 app.listen(port, (err) => {
   if (err) {
