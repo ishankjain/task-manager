@@ -68,8 +68,8 @@ const validateQueryParams = (req, res, next) => {
   next();
 };
 
-let tasks = [];
-let taskId = 1;
+const tasks = require('./task.json').tasks;
+let taskId = Math.max(...tasks.map(task => task.id)) + 1;
 
 // Routes
 app.get("/", (req, res) => {
