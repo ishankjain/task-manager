@@ -7,20 +7,22 @@ app.use(express.urlencoded({ extended: true }));
 
 // Middleware to validate task input
 const validateTaskInput = (req, res, next) => {
-  const { title, description, completed } = req.body;
+  const { title, description, completed, priority } = req.body;
 
-  // Check if title, description, and completed are provided and are of correct types
+  // Check if title, description, and completed are provided and are of correct types.
+  // Also validate the optional parameter priority.
   if (
     typeof title !== "string" || title.trim() === "" ||
     typeof description !== "string" || description.trim() === "" ||
-    typeof completed !== "boolean"
+    typeof completed !== "boolean" ||
+    (priority && !PRIORITY_LEVELS.includes(priority))
   ) {
     return res
       .status(400)
       .json({
-        error:
-          "Title, description, and completed are required fields and must be of valid types. Title and description " +
-          "should be strings and completed should be a boolean.",
+        error:  "Title, description, and completed are required fields and must be of valid types. " +
+                "Title and description should be strings, completed should be a boolean, and priority " +
+                "should be one of 'low', 'medium', or 'high'."
       });
   }
 
@@ -59,6 +61,12 @@ const validateQueryParams = (req, res, next) => {
     return res.status(400).json({ error: "Invalid value for 'completed' parameter. Only allowed values are true and false." });
   }
 
+  // Validate for filtering by priority
+  const { priority } = req.query;
+  if (priority && !PRIORITY_LEVELS.includes(priority)) {
+    return res.status(400).json({ error: "Invalid value for 'priority' parameter. Only allowed values are low, medium and high." });
+  }
+
   // Validate for sorting by id (proxy for creation date)
   const { sortBy } = req.query;
   if (sortBy && !/^id:(asc|desc)$/.test(sortBy)) {
@@ -70,6 +78,15 @@ const validateQueryParams = (req, res, next) => {
 
 const tasks = require('./task.json').tasks;
 let taskId = Math.max(...tasks.map(task => task.id)) + 1;
+
+const PRIORITY_LEVELS = ["low", "medium", "high"];
+const DEFAULT_PRIORITY = 'medium';
+tasks.forEach(task => {
+  if (!task.priority) {
+    task.priority = DEFAULT_PRIORITY;
+  }
+})
+
 
 // Routes
 app.get("/", (req, res) => {
@@ -85,6 +102,12 @@ app.get("/tasks", validateQueryParams, (req, res) => {
   if (completed) {
     const isCompleted = completed === "true";
     filteredTasks = filteredTasks.filter(task => task.completed === isCompleted);
+  }
+
+  // Filter by priority
+  const { priority } = req.query;
+  if (priority) {
+    filteredTasks = filteredTasks.filter(task => task.priority === priority);
   }
 
   // Sort by id (proxy for creation date)
@@ -110,10 +133,10 @@ app.get("/tasks/:id", checkTaskExists, (req, res) => {
 
 // POST a new task
 app.post("/tasks", validateTaskInput, (req, res) => {
-  const { title, description, completed } = req.body;
+  const { title, description, completed, priority } = req.body;
 
-  // Create the task
-  const task = { id: taskId++, title, description, completed };
+  // Create the task with default priority if not provided
+  const task = { id: taskId++, title, description, completed, priority: priority || DEFAULT_PRIORITY };
   tasks.push(task);
 
   return res.status(201).json(task);
@@ -121,12 +144,13 @@ app.post("/tasks", validateTaskInput, (req, res) => {
 
 // PUT update a task by ID
 app.put("/tasks/:id", validateTaskInput, checkTaskExists, (req, res) => {
-  const { title, description, completed } = req.body;
+  const { title, description, completed, priority } = req.body;
 
-  // Update the task
+  // Update the task with default priority if not provided
   req.task.title = title;
   req.task.description = description;
   req.task.completed = completed;
+  req.task.priority = priority || DEFAULT_PRIORITY;
 
   return res.status(200).json(req.task);
 });
