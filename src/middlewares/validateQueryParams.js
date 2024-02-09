@@ -1,3 +1,5 @@
+const PRIORITY_LEVELS = require("../models/taskModel").PRIORITY_LEVELS;
+
 // Validate query parameters for filtering/sorting the tasks
 const validateQueryParams = (req, res, next) => {
   // Validate for filtering by completion status
